@@ -2,7 +2,7 @@
 ## Multi-threaded brute-force application for cracking password hashes.
 
 <p align="center">
-<img src="imgs/logo.png" width="200">
+<img src="imgs/logo.png" width="300">
 </p>
 
 ## Features 
@@ -16,5 +16,5 @@
 - python3 crackmyhash.py -u sha256 -v a42404a554a3a1336d5e2602c884c4e6e49cb2fdc5c470442fe611adde10192f -m LIMITED
 
 <p align="center">
-<img src="imgs/s.png" width="700">
+<img src="imgs/s.png" width="750">
 </p>

@@ -32,6 +32,8 @@
 - python3 crackmyhash.py -u sha256 -v a42404a554a3a1336d5e2602c884c4e6e49cb2fdc5c470442fe611adde10192f -m LIMITED
 ```
 
+## Screenshot
+
 <p align="center">
 <img src="imgs/s.png" width="750">
 </p>

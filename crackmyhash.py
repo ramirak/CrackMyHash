@@ -16,7 +16,7 @@ MIN_LEN=4
 MAX_LEN=16
 FOUND_NOTIF = threading.Event()
 dict_mode = False
-
+verbose = False
 do_sha = None
 hash_name = None
 hash_to_find = None
@@ -26,12 +26,15 @@ parser.add_argument("-m", "--mode", help = "FULL (slow) / REGULAR (default) / LI
 parser.add_argument("-u", "--use-hash", help = "sha1 / sha256", required = True, default = "")
 parser.add_argument("-v", "--value", help = "ed1706c82c77b99e4276522967f7563fa7cd8f2d", required = True, default = "")
 parser.add_argument("-d", "--dictionary", help = "dict/passowrds.txt", required = False, default = "")
+parser.add_argument("--min", help = "Minimum length to start with", type=int ,required = False, default = "4")
+parser.add_argument("--max", help = "Maximum length to try", type=int, required = False, default = "16")
+parser.add_argument("--verbose", help = "Show outputs", required = False, action='store_true')
 
 argument = parser.parse_args()
 
 
 def prepare():
-    global do_sha, hash_name, hash_to_find, dict_mode, MIN_CHAR_RANGE, MAX_CHAR_RANGE
+    global do_sha, hash_name, hash_to_find, dict_mode, verbose, MIN_CHAR_RANGE, MAX_CHAR_RANGE, MIN_LEN, MAX_LEN
     hash_name = argument.use_hash
     hash_to_find = argument.value
 
@@ -56,17 +59,28 @@ def prepare():
         print("Not supported hash function. Exiting.")
         exit(0)
 
+    if argument.min <= argument.max and argument.min <= MAX_LEN:
+        MIN_LEN = argument.min
+        MAX_LEN = argument.max
+    else:
+        print("Min value must be lower or equal to max value.")
+        exit(0)
+
+    if argument.verbose:
+        verbose = True
+
     if os.path.isfile(argument.dictionary):
         dict_mode = True     
     else:
         print("Dictionary file not supplied, trying with brute-force..")
 
-
 def try_match(current_str):
-    global dict_mode
+    global dict_mode, COUNTER
     if not dict_mode:
         current_str = ''.join(chr(x) for x in current_str)
     current_hash = do_sha(current_str)
+    if verbose:
+        print(current_str + " " + current_hash)
     if current_hash == hash_to_find:
         print("Found a match: " + str(current_str))
         return True
@@ -89,7 +103,7 @@ def dictionary_mode(dict, my_task_id, task_size ,FOUND_NOTIF):
 def bruteforce_mode(current_len, my_task_id, FOUND_NOTIF):
     my_str = [ MIN_CHAR_RANGE for i in range(current_len - 1)]
     my_str.append(my_task_id)
-
+    
     while not FOUND_NOTIF.is_set():
         done = True
         for i in range(len(my_str) - 1):
@@ -115,50 +129,52 @@ def init_dict(filename):
 
 
 def task_manager():
-    print("Starting..")
+    try:
+        print("Starting..")
 
-    if dict_mode:
-        dict = init_dict(argument.dictionary)
-        task_size = int(len(dict) / 100)
-        
-        for task in range(100):
-            t = threading.Thread(target=dictionary_mode, args=(dict, task, task_size, FOUND_NOTIF))
-            t.start()
-            break
-
-        if(FOUND_NOTIF.is_set()):
-            print("Exiting!")
-            exit(0)
-    else:
-        task_index = MIN_CHAR_RANGE
-        current_len = MIN_LEN
-        threads = []
-
-        while(current_len <= MAX_LEN):
-            print("Trying with length " + str(current_len))
-            while(task_index <= MAX_CHAR_RANGE):
-                # Create all threads for current run
-                threads.append(threading.Thread(target=bruteforce_mode, args=(current_len, task_index, FOUND_NOTIF), daemon=True))
-                task_index += 1
-                
-            # start all threads 
-            for t in threads:
-                t.start()
+        if dict_mode:
+            dict = init_dict(argument.dictionary)
+            task_size = int(len(dict) / 100)
             
-            # wait for threads to finish and extend the string if no match was found
-            for t in threads:
-                t.join()
-
-            threads.clear()
-            task_index = MIN_CHAR_RANGE
-            current_len += 1 
+            for task in range(100):
+                t = threading.Thread(target=dictionary_mode, args=(dict, task, task_size, FOUND_NOTIF))
+                t.start()
+                break
 
             if(FOUND_NOTIF.is_set()):
                 print("Exiting!")
                 exit(0)
-                
-            print("Not found")
+        else:
+            task_index = MIN_CHAR_RANGE
+            current_len = MIN_LEN
+            threads = []
 
+            while(current_len <= MAX_LEN):
+                print("Trying with length " + str(current_len))
+                while(task_index <= MAX_CHAR_RANGE):
+                    # Create all threads for current run
+                    threads.append(threading.Thread(target=bruteforce_mode, args=(current_len, task_index, FOUND_NOTIF), daemon=True))
+                    task_index += 1
+                    
+                # start all threads 
+                for t in threads:
+                    t.start()
+                
+                # wait for threads to finish and extend the string if no match was found
+                for t in threads:
+                    t.join()
+
+                threads.clear()
+                task_index = MIN_CHAR_RANGE
+                current_len += 1 
+
+                if(FOUND_NOTIF.is_set()):
+                    print("Exiting!")
+                    exit(0)
+                    
+                print("Not found")
+    except:
+        print("\nStopping..")
 
 print(logo)
 prepare()
